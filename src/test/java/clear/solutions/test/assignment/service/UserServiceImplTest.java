@@ -2,7 +2,10 @@ package clear.solutions.test.assignment.service;
 
 import clear.solutions.test.assignment.configuration.UserConfigurationProperties;
 import clear.solutions.test.assignment.dao.UserDao;
+import clear.solutions.test.assignment.exception.ApiException;
+import clear.solutions.test.assignment.exception.Error;
 import clear.solutions.test.assignment.model.User;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,10 +61,11 @@ class UserServiceImplTest {
     void register_withNullBirthDate_throws() {
         final var user = new User();
         doReturn(MIN_AGE).when(properties).getMinAge();
-        assertThrows(
-                IllegalArgumentException.class,
+        final var exception = assertThrows(
+                ApiException.class,
                 () -> userService.register(user)
         );
+        assertEquals(Error.INVALID_AGE, exception.getError());
         verify(userDao, times(0)).save(any());
     }
 
@@ -71,10 +75,11 @@ class UserServiceImplTest {
         final var user = new User();
         user.setBirthDate(LocalDate.now().minusYears(MIN_AGE).plusDays(1));
         doReturn(MIN_AGE).when(properties).getMinAge();
-        assertThrows(
-                IllegalArgumentException.class,
+        final var exception = assertThrows(
+                ApiException.class,
                 () -> userService.register(user)
         );
+        assertEquals(Error.INVALID_AGE, exception.getError());
         verify(userDao, times(0)).save(any());
     }
 }
