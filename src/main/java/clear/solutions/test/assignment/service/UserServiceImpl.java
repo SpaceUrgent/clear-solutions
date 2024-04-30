@@ -24,7 +24,13 @@ public class UserServiceImpl implements UserService {
     @Override
     public User register(final User user) {
         this.checkMinAge(user);
-        return userDao.save(user);
+        return this.userDao.save(user);
+    }
+
+    @Override
+    public User find(Long userId) {
+        return this.userDao.findById(userId)
+                .orElseThrow(() -> new ApiException(Error.USER_NOT_FOUND));
     }
 
     private void checkMinAge(User user) {

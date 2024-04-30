@@ -6,6 +6,7 @@ import clear.solutions.test.assignment.exception.ApiException;
 import clear.solutions.test.assignment.exception.Error;
 import clear.solutions.test.assignment.model.User;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.BeanUtils;
 
 import java.time.LocalDate;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +31,8 @@ class UserServiceImplTest {
 
     private static final Integer MIN_AGE = 18;
 
+    private static User USER;
+
     @InjectMocks
     private UserServiceImpl userService;
     @Mock
@@ -36,24 +40,26 @@ class UserServiceImplTest {
     @Mock
     private UserDao userDao;
 
+    @BeforeEach
+    void setUp() {
+        USER = new User();
+        USER.setEmail("test@mail.com");
+        USER.setBirthDate(LocalDate.now().minusYears(MIN_AGE + 1));
+    }
+
     @Test
     @DisplayName("Register - OK")
     void register_ok() {
-        final var email = "test@mail.com";
-        final var birthDate = LocalDate.now().minusYears(MIN_AGE + 1);
-        var user = new User();
-        user.setEmail(email);
-        user.setBirthDate(birthDate);
         var saved = new User();
-        saved.setBirthDate(birthDate);
-        saved.setEmail(email);
+        saved.setBirthDate(USER.getBirthDate());
+        saved.setEmail(USER.getEmail());
         saved.setId(1L);
 
         doReturn(MIN_AGE).when(properties).getMinAge();
-        doReturn(saved).when(userDao).save(eq(user));
-        final var registered = userService.register(user);
+        doReturn(saved).when(userDao).save(eq(USER));
+        final var registered = userService.register(USER);
         assertSame(saved, registered);
-        verify(userDao).save(user);
+        verify(userDao).save(eq(USER));
     }
 
     @Test
@@ -81,5 +87,25 @@ class UserServiceImplTest {
         );
         assertEquals(Error.INVALID_AGE, exception.getError());
         verify(userDao, times(0)).save(any());
+    }
+
+    @Test
+    @DisplayName("Find - OK")
+    void find_ok() {
+        final var id = 1L;
+        doReturn(Optional.of(USER)).when(userDao).findById(id);
+        assertEquals(USER, userService.find(id));
+    }
+
+    @Test
+    @DisplayName("Find with non-existing id throws api exception")
+    void find_withNonExistingId_throws() {
+        final var id = 1L;
+        doReturn(Optional.empty()).when(userDao).findById(id);
+        final var exception = assertThrows(
+                ApiException.class,
+                () -> userService.find(id)
+        );
+        assertEquals(Error.USER_NOT_FOUND, exception.getError());
     }
 }

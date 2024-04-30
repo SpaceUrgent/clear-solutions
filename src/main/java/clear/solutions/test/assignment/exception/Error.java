@@ -3,7 +3,8 @@ package clear.solutions.test.assignment.exception;
 import org.springframework.http.HttpStatus;
 
 public enum Error {
-    INVALID_AGE(HttpStatus.UNPROCESSABLE_ENTITY, "Age is below the minimum");
+    INVALID_AGE(HttpStatus.UNPROCESSABLE_ENTITY, "Age is below the minimum"),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found");
 
     private final HttpStatus httpStatus;
     private final String reason;
