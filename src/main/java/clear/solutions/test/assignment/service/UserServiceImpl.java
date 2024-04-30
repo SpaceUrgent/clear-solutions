@@ -22,7 +22,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User register(final User user) {
+    public User save(final User user) {
         this.checkMinAge(user);
         return this.userDao.save(user);
     }

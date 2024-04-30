@@ -33,7 +33,7 @@ public class UserController {
     @PostMapping
     public DataDto<UserDto> register(@Valid @RequestBody final DataDto<CreateUserDto> dataDto,
                                      final HttpServletResponse servletResponse) {
-        final var registered = userService.register(userMapper.toUser(dataDto.getData()));
+        final var registered = userService.save(userMapper.toUser(dataDto.getData()));
         servletResponse.addHeader(HttpHeaders.LOCATION, "/users/%d".formatted(registered.getId()));
         return DataDto.of(userMapper.toRegisterResponse(registered));
     }
@@ -43,7 +43,7 @@ public class UserController {
                                        @Valid @RequestBody final DataDto<CreateUserDto> dataDto) {
         var user = userService.find(userId);
         userMapper.updateUser(user, dataDto.getData());
-        user = userService.register(user);
+        user = userService.save(user);
         return DataDto.of(userMapper.toRegisterResponse(user));
     }
 }
