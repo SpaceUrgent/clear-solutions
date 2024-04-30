@@ -1,10 +1,9 @@
 package clear.solutions.test.assignment.controller;
 
 import clear.solutions.test.assignment.dto.DataDto;
-import clear.solutions.test.assignment.dto.RegisterUserRequest;
-import clear.solutions.test.assignment.dto.RegisterUserResponse;
+import clear.solutions.test.assignment.dto.CreateUserDto;
+import clear.solutions.test.assignment.dto.UserDto;
 import clear.solutions.test.assignment.mapper.UserMapper;
-import clear.solutions.test.assignment.model.User;
 import clear.solutions.test.assignment.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -32,16 +31,16 @@ public class UserController {
 
     @ResponseStatus(value = HttpStatus.CREATED)
     @PostMapping
-    public DataDto<RegisterUserResponse> register(@Valid @RequestBody final DataDto<RegisterUserRequest> dataDto,
-                                                  final HttpServletResponse servletResponse) {
+    public DataDto<UserDto> register(@Valid @RequestBody final DataDto<CreateUserDto> dataDto,
+                                     final HttpServletResponse servletResponse) {
         final var registered = userService.register(userMapper.toUser(dataDto.getData()));
         servletResponse.addHeader(HttpHeaders.LOCATION, "/users/%d".formatted(registered.getId()));
         return DataDto.of(userMapper.toRegisterResponse(registered));
     }
 
     @PutMapping("/{userId}")
-    public DataDto<RegisterUserResponse> updateUser(@PathVariable final Long userId,
-                                                    @Valid @RequestBody final DataDto<RegisterUserRequest> dataDto) {
+    public DataDto<UserDto> updateUser(@PathVariable final Long userId,
+                                       @Valid @RequestBody final DataDto<CreateUserDto> dataDto) {
         var user = userService.find(userId);
         userMapper.updateUser(user, dataDto.getData());
         user = userService.register(user);

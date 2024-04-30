@@ -1,7 +1,7 @@
 package clear.solutions.test.assignment.mapper;
 
-import clear.solutions.test.assignment.dto.RegisterUserRequest;
-import clear.solutions.test.assignment.dto.RegisterUserResponse;
+import clear.solutions.test.assignment.dto.CreateUserDto;
+import clear.solutions.test.assignment.dto.UserDto;
 import clear.solutions.test.assignment.model.User;
 import org.springframework.stereotype.Component;
 
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 public class UserMapperImpl implements UserMapper {
 
     @Override
-    public User toUser(final RegisterUserRequest request) {
+    public User toUser(final CreateUserDto request) {
         final var user = new User();
         user.setEmail(request.getEmail());
         user.setFirstName(request.getFirstName());
@@ -21,7 +21,7 @@ public class UserMapperImpl implements UserMapper {
     }
 
     @Override
-    public void updateUser(User target, RegisterUserRequest request) {
+    public void updateUser(User target, CreateUserDto request) {
         target.setEmail(request.getEmail());
         target.setFirstName(request.getFirstName());
         target.setLastName(request.getLastName());
@@ -31,8 +31,8 @@ public class UserMapperImpl implements UserMapper {
     }
 
     @Override
-    public RegisterUserResponse toRegisterResponse(final User user) {
-        final var response = new RegisterUserResponse();
+    public UserDto toRegisterResponse(final User user) {
+        final var response = new UserDto();
         response.setId(user.getId());
         response.setEmail(user.getEmail());
         response.setFirstName(user.getFirstName());

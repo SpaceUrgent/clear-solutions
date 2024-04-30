@@ -3,8 +3,8 @@ package clear.solutions.test.assignment.controller;
 import clear.solutions.test.assignment.configuration.UserConfigurationProperties;
 import clear.solutions.test.assignment.dao.UserDao;
 import clear.solutions.test.assignment.dto.DataDto;
-import clear.solutions.test.assignment.dto.RegisterUserRequest;
-import clear.solutions.test.assignment.dto.RegisterUserResponse;
+import clear.solutions.test.assignment.dto.CreateUserDto;
+import clear.solutions.test.assignment.dto.UserDto;
 import clear.solutions.test.assignment.exception.Error;
 import clear.solutions.test.assignment.model.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -25,7 +25,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -57,15 +56,15 @@ class UserControllerTest {
     private static final String PHONE = "phone";
 
     private static User USER;
-    private static RegisterUserRequest VALID_REGISTER_REQUEST;
-    private static RegisterUserRequest REGISTER_REQUEST_WITHOUT_EMAIL;
-    private static RegisterUserRequest REGISTER_REQUEST_WITH_INVALID_EMAIL;
-    private static RegisterUserRequest REGISTER_REQUEST_WITH_NULL_FIRST_NAME;
-    private static RegisterUserRequest REGISTER_REQUEST_WITH_BLANK_FIRST_NAME;
-    private static RegisterUserRequest REGISTER_REQUEST_WITH_NULL_LAST_NAME;
-    private static RegisterUserRequest REGISTER_REQUEST_WITH_BLANK_LAST_NAME;
-    private static RegisterUserRequest REGISTER_REQUEST_WITH_NULL_BIRTH_DATE;
-    private static RegisterUserRequest REGISTER_REQUEST_WITH_ILLEGAL_AGE;
+    private static CreateUserDto VALID_REGISTER_REQUEST;
+    private static CreateUserDto REGISTER_REQUEST_WITHOUT_EMAIL;
+    private static CreateUserDto REGISTER_REQUEST_WITH_INVALID_EMAIL;
+    private static CreateUserDto REGISTER_REQUEST_WITH_NULL_FIRST_NAME;
+    private static CreateUserDto REGISTER_REQUEST_WITH_BLANK_FIRST_NAME;
+    private static CreateUserDto REGISTER_REQUEST_WITH_NULL_LAST_NAME;
+    private static CreateUserDto REGISTER_REQUEST_WITH_BLANK_LAST_NAME;
+    private static CreateUserDto REGISTER_REQUEST_WITH_NULL_BIRTH_DATE;
+    private static CreateUserDto REGISTER_REQUEST_WITH_ILLEGAL_AGE;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule());
@@ -91,7 +90,7 @@ class UserControllerTest {
         USER = userDao.save(USER);
         Mockito.clearInvocations(userDao);
 
-        VALID_REGISTER_REQUEST = new RegisterUserRequest();
+        VALID_REGISTER_REQUEST = new CreateUserDto();
         VALID_REGISTER_REQUEST.setEmail(VALID_EMAIL);
         VALID_REGISTER_REQUEST.setFirstName(FIRST_NAME);
         VALID_REGISTER_REQUEST.setLastName(LAST_NAME);
@@ -137,7 +136,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.data.phone").value(VALID_REGISTER_REQUEST.getPhone()))
                 .andReturn();
 
-        final var response = readJson(mvcResult.getResponse().getContentAsByteArray(), new TypeReference<DataDto<RegisterUserResponse>>() {});
+        final var response = readJson(mvcResult.getResponse().getContentAsByteArray(), new TypeReference<DataDto<UserDto>>() {});
         final var id = response.getData().getId();
         assertEquals("/users/%d".formatted(id), mvcResult.getResponse().getHeader(HttpHeaders.LOCATION));
         final var saved = userDao.findById(id)
@@ -190,7 +189,7 @@ class UserControllerTest {
     @Test
     @DisplayName("Register user with null or blank first name returns 400")
     void register_withInvalidFirstName_returns400() throws Exception {
-        for (RegisterUserRequest request : List.of(REGISTER_REQUEST_WITH_NULL_FIRST_NAME, REGISTER_REQUEST_WITH_BLANK_FIRST_NAME)) {
+        for (CreateUserDto request : List.of(REGISTER_REQUEST_WITH_NULL_FIRST_NAME, REGISTER_REQUEST_WITH_BLANK_FIRST_NAME)) {
             mockMvc.perform(post("/users")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(writeJson(DataDto.of(request))))
@@ -210,7 +209,7 @@ class UserControllerTest {
     @Test
     @DisplayName("Register user with null or blank last name returns 400")
     void register_withInvalidLastName_returns400() throws Exception {
-        for (RegisterUserRequest request : List.of(REGISTER_REQUEST_WITH_NULL_LAST_NAME, REGISTER_REQUEST_WITH_BLANK_LAST_NAME)) {
+        for (CreateUserDto request : List.of(REGISTER_REQUEST_WITH_NULL_LAST_NAME, REGISTER_REQUEST_WITH_BLANK_LAST_NAME)) {
             mockMvc.perform(post("/users")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(writeJson(DataDto.of(request))))
@@ -329,7 +328,7 @@ class UserControllerTest {
     @Test
     @DisplayName("Update user with null or blank first name returns 400")
     void updateUser_withInvalidFirstName_returns400() throws Exception {
-        for (RegisterUserRequest request : List.of(REGISTER_REQUEST_WITH_NULL_FIRST_NAME, REGISTER_REQUEST_WITH_BLANK_FIRST_NAME)) {
+        for (CreateUserDto request : List.of(REGISTER_REQUEST_WITH_NULL_FIRST_NAME, REGISTER_REQUEST_WITH_BLANK_FIRST_NAME)) {
             mockMvc.perform(put("/users/{userId}", USER.getId())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(writeJson(DataDto.of(request))))
@@ -349,7 +348,7 @@ class UserControllerTest {
     @Test
     @DisplayName("Update user with null or blank last name returns 400")
     void updateUser_withInvalidLastName_returns400() throws Exception {
-        for (RegisterUserRequest request : List.of(REGISTER_REQUEST_WITH_NULL_LAST_NAME, REGISTER_REQUEST_WITH_BLANK_LAST_NAME)) {
+        for (CreateUserDto request : List.of(REGISTER_REQUEST_WITH_NULL_LAST_NAME, REGISTER_REQUEST_WITH_BLANK_LAST_NAME)) {
             mockMvc.perform(put("/users/{userId}", USER.getId())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(writeJson(DataDto.of(request))))
@@ -427,8 +426,8 @@ class UserControllerTest {
         return objectMapper.writeValueAsBytes(object);
     }
 
-    private RegisterUserRequest getCopyFrom(RegisterUserRequest validRegisterRequest) {
-        final var copy = new RegisterUserRequest();
+    private CreateUserDto getCopyFrom(CreateUserDto validRegisterRequest) {
+        final var copy = new CreateUserDto();
         BeanUtils.copyProperties(validRegisterRequest, copy);
         return copy;
     }

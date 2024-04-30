@@ -1,28 +1,24 @@
 package clear.solutions.test.assignment.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import org.springframework.format.annotation.DateTimeFormat;
+import clear.solutions.test.assignment.constants.ApiConstants;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class RegisterUserResponse {
-    private Long id;
+public class CreateUserDto {
+    @NotNull(message = "Email must be present")
+    @Email(regexp = ApiConstants.EMAIL_REGEX, message = "Invalid email format")
     private String email;
+    @NotBlank(message = "First name must be present and contains at least 1 symbol")
     private String firstName;
+    @NotBlank(message = "Last name must be present and contains at least 1 symbol")
     private String lastName;
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    @NotNull(message = "Birth date must be present")
     private LocalDate birthDate;
     private String address;
     private String phone;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
 
     public String getEmail() {
         return email;
@@ -74,7 +70,7 @@ public class RegisterUserResponse {
 
     @Override
     public String toString() {
-        return "RegisterUserResponse{" +
+        return "RegisterUserRequest{" +
                 "email='" + email + '\'' +
                 ", firstName='" + firstName + '\'' +
                 ", lastName='" + lastName + '\'' +

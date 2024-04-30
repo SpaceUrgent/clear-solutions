@@ -1,13 +1,13 @@
 package clear.solutions.test.assignment.mapper;
 
-import clear.solutions.test.assignment.dto.RegisterUserRequest;
-import clear.solutions.test.assignment.dto.RegisterUserResponse;
+import clear.solutions.test.assignment.dto.CreateUserDto;
+import clear.solutions.test.assignment.dto.UserDto;
 import clear.solutions.test.assignment.model.User;
 
 public interface UserMapper {
-    User toUser(RegisterUserRequest request);
+    User toUser(CreateUserDto request);
 
-    void updateUser(User target, RegisterUserRequest request);
+    void updateUser(User target, CreateUserDto request);
 
-    RegisterUserResponse toRegisterResponse(User user);
+    UserDto toRegisterResponse(User user);
 }
