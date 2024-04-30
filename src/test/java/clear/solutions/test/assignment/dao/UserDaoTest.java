@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UserDaoTest {
 
@@ -73,6 +74,22 @@ class UserDaoTest {
         assertEquals(expected, updated);
         assertEquals(expected, userDao.findById(id).orElse(null));
         assertEquals(1, userDao.countAll());
+    }
+
+    @Test
+    @DisplayName("Find by id return optional of entity")
+    void findById_returnsOptionalEntity() {
+        final var id = userDao.save(USER).getId();
+        final var userFound = userDao.findById(id).orElse(null);
+        assertNotNull(userFound);
+        assertNotSame(USER, userFound);
+        assertEquals(USER, userFound);
+    }
+
+    @Test
+    @DisplayName("Find by id return optional empty")
+    void findById_returnsOptionalEmpty() {
+        assertTrue(userDao.findById(100L).isEmpty());
     }
 
     @Test

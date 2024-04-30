@@ -28,7 +28,8 @@ public abstract class AbstractDao<T extends Entity> {
 
     public Optional<T> findById(Long id) {
         Assert.notNull(id, "id must be not null");
-        return Optional.ofNullable(entities.get(id));
+        return Optional.ofNullable(entities.get(id))
+                .map(entity -> (T) entity.clone());
     }
 
     public void deleteAll() {
