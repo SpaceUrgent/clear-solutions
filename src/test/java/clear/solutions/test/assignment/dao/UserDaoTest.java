@@ -53,6 +53,7 @@ class UserDaoTest {
         assertEquals(PHONE, saved.getPhone());
 
         assertEquals(saved, userDao.findById(saved.getId()).orElse(null));
+        assertEquals(1, userDao.countAll());
     }
 
     @Test
@@ -71,5 +72,22 @@ class UserDaoTest {
         final var updated = userDao.save(saved);
         assertEquals(expected, updated);
         assertEquals(expected, userDao.findById(id).orElse(null));
+        assertEquals(1, userDao.countAll());
+    }
+
+    @Test
+    @DisplayName("Delete all")
+    void deleteAll() {
+        for (int i = 0; i < 10; i++) {
+            final var user = new User();
+            user.setEmail("email%d@gmail.com".formatted(i));
+            user.setFirstName("name%d".formatted(i));
+            user.setLastName("last%d".formatted(i));
+            user.setBirthDate(LocalDate.now().minusYears(50));
+            user.setAddress("address%d".formatted(i));
+            user.setPhone("phone%d".formatted(i));
+        }
+        userDao.deleteAll();
+        assertEquals(0, userDao.countAll());
     }
 }

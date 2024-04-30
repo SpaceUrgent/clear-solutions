@@ -30,4 +30,12 @@ public abstract class AbstractDao<T extends Entity> {
         Assert.notNull(id, "id must be not null");
         return Optional.ofNullable(entities.get(id));
     }
+
+    public void deleteAll() {
+        this.entities.clear();
+    }
+
+    public long countAll() {
+        return this.entities.size();
+    }
 }
