@@ -6,6 +6,7 @@ import clear.solutions.test.assignment.dto.DataDto;
 import clear.solutions.test.assignment.dto.RegisterUserRequest;
 import clear.solutions.test.assignment.dto.RegisterUserResponse;
 import clear.solutions.test.assignment.exception.Error;
+import clear.solutions.test.assignment.model.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,14 +15,17 @@ import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -30,7 +34,11 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -48,6 +56,7 @@ class UserControllerTest {
     private static final String ADDRESS = "address";
     private static final String PHONE = "phone";
 
+    private static User USER;
     private static RegisterUserRequest VALID_REGISTER_REQUEST;
     private static RegisterUserRequest REGISTER_REQUEST_WITHOUT_EMAIL;
     private static RegisterUserRequest REGISTER_REQUEST_WITH_INVALID_EMAIL;
@@ -65,18 +74,28 @@ class UserControllerTest {
     private MockMvc mockMvc;
     @Autowired
     private UserConfigurationProperties properties;
-    @Autowired
+    @SpyBean
     private UserDao userDao;
 
     @BeforeEach
     void setUp() {
         userDao.deleteAll();
 
+        final var validBirthDate = LocalDate.now().minusYears(properties.getMinAge() + 1);
+
+        USER = new User();
+        USER.setEmail(VALID_EMAIL);
+        USER.setFirstName(FIRST_NAME);
+        USER.setLastName(LAST_NAME);
+        USER.setBirthDate(validBirthDate);
+        USER = userDao.save(USER);
+        Mockito.clearInvocations(userDao);
+
         VALID_REGISTER_REQUEST = new RegisterUserRequest();
         VALID_REGISTER_REQUEST.setEmail(VALID_EMAIL);
         VALID_REGISTER_REQUEST.setFirstName(FIRST_NAME);
         VALID_REGISTER_REQUEST.setLastName(LAST_NAME);
-        VALID_REGISTER_REQUEST.setBirthDate(LocalDate.now().minusYears(properties.getMinAge() + 1));
+        VALID_REGISTER_REQUEST.setBirthDate(validBirthDate);
         VALID_REGISTER_REQUEST.setAddress(ADDRESS);
         VALID_REGISTER_REQUEST.setPhone(PHONE);
 
@@ -99,11 +118,12 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("Register valid user - OK")
+    @DisplayName("Register user - OK")
     void register_ok() throws Exception {
         final var mvcResult = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(writeJson(DataDto.of(VALID_REGISTER_REQUEST))))
+                .andDo(print())
                 .andDo(print())
                 .andExpect(status().isCreated())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -146,7 +166,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data.email", "Email must be present")))
                 .andExpect(jsonPath("$.path").value("/users"));
-        assertEquals(0, userDao.countAll());
+        verify(userDao, times(0)).save(any());
     }
 
     @Test
@@ -164,7 +184,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data.email", "Invalid email format")))
                 .andExpect(jsonPath("$.path").value("/users"));
-        assertEquals(0, userDao.countAll());
+        verify(userDao, times(0)).save(any());
     }
 
     @Test
@@ -183,7 +203,7 @@ class UserControllerTest {
                     .andExpect(jsonPath("$.details").value(
                             Matchers.hasEntry("data.firstName", "First name must be present and contains at least 1 symbol")))
                     .andExpect(jsonPath("$.path").value("/users"));
-            assertEquals(0, userDao.countAll());
+            verify(userDao, times(0)).save(any());
         }
     }
 
@@ -203,7 +223,7 @@ class UserControllerTest {
                     .andExpect(jsonPath("$.details").value(
                             Matchers.hasEntry("data.lastName", "Last name must be present and contains at least 1 symbol")))
                     .andExpect(jsonPath("$.path").value("/users"));
-            assertEquals(0, userDao.countAll());
+            verify(userDao, times(0)).save(any());
         }
     }
 
@@ -222,7 +242,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data.birthDate", "Birth date must be present")))
                 .andExpect(jsonPath("$.path").value("/users"));
-        assertEquals(0, userDao.countAll());
+        verify(userDao, times(0)).save(any());
     }
 
     @Test
@@ -238,8 +258,166 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.status").value(Error.INVALID_AGE.getHttpStatus().value()))
                 .andExpect(jsonPath("$.reason").value(Error.INVALID_AGE.getReason()))
                 .andExpect(jsonPath("$.path").value("/users"));
-        assertEquals(0, userDao.countAll());
+        verify(userDao, times(0)).save(any());
     }
+
+    @Test
+    @DisplayName("Update user - OK")
+    void updateUser_ok() throws Exception {
+        mockMvc.perform(put("/users/{userId}", USER.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(DataDto.of(VALID_REGISTER_REQUEST))))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.data.id").value(USER.getId()))
+                .andExpect(jsonPath("$.data.email").value(VALID_REGISTER_REQUEST.getEmail()))
+                .andExpect(jsonPath("$.data.firstName").value(VALID_REGISTER_REQUEST.getFirstName()))
+                .andExpect(jsonPath("$.data.lastName").value(VALID_REGISTER_REQUEST.getLastName()))
+                .andExpect(jsonPath("$.data.birthDate").value(VALID_REGISTER_REQUEST.getBirthDate().format(DateTimeFormatter.ISO_DATE)))
+                .andExpect(jsonPath("$.data.address").value(VALID_REGISTER_REQUEST.getAddress()))
+                .andExpect(jsonPath("$.data.phone").value(VALID_REGISTER_REQUEST.getPhone()))
+                .andReturn();
+
+        final var updated = userDao.findById(USER.getId())
+                .orElse(null);
+        assertNotNull(updated);
+        assertEquals(VALID_REGISTER_REQUEST.getEmail(), updated.getEmail());
+        assertEquals(VALID_REGISTER_REQUEST.getFirstName(), updated.getFirstName());
+        assertEquals(VALID_REGISTER_REQUEST.getLastName(), updated.getLastName());
+        assertEquals(VALID_REGISTER_REQUEST.getBirthDate(), updated.getBirthDate());
+        assertEquals(VALID_REGISTER_REQUEST.getAddress(), updated.getAddress());
+        assertEquals(VALID_REGISTER_REQUEST.getPhone(), updated.getPhone());
+    }
+
+    @Test
+    @DisplayName("Update user with null email returns 400")
+    void updateUser_withNullEmail_returns400() throws Exception {
+        mockMvc.perform(put("/users/{userId}", USER.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(DataDto.of(REGISTER_REQUEST_WITHOUT_EMAIL))))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.details").value(
+                        Matchers.hasEntry("data.email", "Email must be present")))
+                .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
+        verify(userDao, times(0)).save(any());
+    }
+
+    @Test
+    @DisplayName("Update user with null email returns 400")
+    void updateUser_withInvalidEmail_returns400() throws Exception {
+        mockMvc.perform(put("/users/{userId}", USER.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(DataDto.of(REGISTER_REQUEST_WITH_INVALID_EMAIL))))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.details").value(
+                        Matchers.hasEntry("data.email", "Invalid email format")))
+                .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
+        verify(userDao, times(0)).save(any());
+    }
+
+    @Test
+    @DisplayName("Update user with null or blank first name returns 400")
+    void updateUser_withInvalidFirstName_returns400() throws Exception {
+        for (RegisterUserRequest request : List.of(REGISTER_REQUEST_WITH_NULL_FIRST_NAME, REGISTER_REQUEST_WITH_BLANK_FIRST_NAME)) {
+            mockMvc.perform(put("/users/{userId}", USER.getId())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(writeJson(DataDto.of(request))))
+                    .andDo(print())
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.timestamp").exists())
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                    .andExpect(jsonPath("$.details").value(
+                            Matchers.hasEntry("data.firstName", "First name must be present and contains at least 1 symbol")))
+                    .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
+            verify(userDao, times(0)).save(any());
+        }
+    }
+
+    @Test
+    @DisplayName("Update user with null or blank last name returns 400")
+    void updateUser_withInvalidLastName_returns400() throws Exception {
+        for (RegisterUserRequest request : List.of(REGISTER_REQUEST_WITH_NULL_LAST_NAME, REGISTER_REQUEST_WITH_BLANK_LAST_NAME)) {
+            mockMvc.perform(put("/users/{userId}", USER.getId())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(writeJson(DataDto.of(request))))
+                    .andDo(print())
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.timestamp").exists())
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                    .andExpect(jsonPath("$.details").value(
+                            Matchers.hasEntry("data.lastName", "Last name must be present and contains at least 1 symbol")))
+                    .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
+            verify(userDao, times(0)).save(any());
+        }
+    }
+
+    @Test
+    @DisplayName("Update user with null birth date returns 400")
+    void updateUser_withNullBirthDate_returns400() throws Exception {
+        mockMvc.perform(put("/users/{userId}", USER.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(DataDto.of(REGISTER_REQUEST_WITH_NULL_BIRTH_DATE))))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.details").value(
+                        Matchers.hasEntry("data.birthDate", "Birth date must be present")))
+                .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
+        verify(userDao, times(0)).save(any());
+    }
+
+    @Test
+    @DisplayName("Update user with age below min returns 422")
+    void updateUser_withAgeBelowMin_returns422() throws Exception {
+        mockMvc.perform(put("/users/{userId}", USER.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(DataDto.of(REGISTER_REQUEST_WITH_ILLEGAL_AGE))))
+                .andDo(print())
+                .andExpect(status().is(Error.INVALID_AGE.getHttpStatus().value()))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(Error.INVALID_AGE.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.INVALID_AGE.getReason()))
+                .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
+        verify(userDao, times(0)).save(any());
+    }
+
+    @Test
+    @DisplayName("Update user with with non-existing id throws 404")
+    void updateUser_withNonExistingId_returns404() throws Exception {
+        final var nonExistingId = 100000L;
+        mockMvc.perform(put("/users/{userId}", nonExistingId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(DataDto.of(VALID_REGISTER_REQUEST))))
+                .andDo(print())
+                .andExpect(status().is(Error.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(Error.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.USER_NOT_FOUND.getReason()))
+                .andExpect(jsonPath("$.path").value("/users/%d".formatted(nonExistingId)));
+        verify(userDao, times(0)).save(any());
+    }
+
+
 
     private <T> T readJson(final byte[] json, TypeReference<T> typeReference) throws IOException {
         return objectMapper.readValue(json, typeReference);

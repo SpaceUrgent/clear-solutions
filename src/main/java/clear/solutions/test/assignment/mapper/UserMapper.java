@@ -7,5 +7,7 @@ import clear.solutions.test.assignment.model.User;
 public interface UserMapper {
     User toUser(RegisterUserRequest request);
 
+    void updateUser(User target, RegisterUserRequest request);
+
     RegisterUserResponse toRegisterResponse(User user);
 }

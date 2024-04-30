@@ -21,6 +21,16 @@ public class UserMapperImpl implements UserMapper {
     }
 
     @Override
+    public void updateUser(User target, RegisterUserRequest request) {
+        target.setEmail(request.getEmail());
+        target.setFirstName(request.getFirstName());
+        target.setLastName(request.getLastName());
+        target.setBirthDate(request.getBirthDate());
+        target.setAddress(request.getAddress());
+        target.setPhone(request.getPhone());
+    }
+
+    @Override
     public RegisterUserResponse toRegisterResponse(final User user) {
         final var response = new RegisterUserResponse();
         response.setId(user.getId());
