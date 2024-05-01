@@ -14,6 +14,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -104,6 +106,47 @@ class UserServiceImplTest {
                 () -> userService.find(id)
         );
         assertEquals(Error.USER_NOT_FOUND, exception.getError());
+    }
+
+    @Test
+    @DisplayName("Find users by birth date range")
+    void findByBirthDateRange() {
+        final var users = new ArrayList<User>();
+        for (long i = 0; i < 5; i++) {
+            final var user = new User();
+            user.setId(i);
+            users.add(user);
+        }
+        final var from = LocalDate.now().minusDays(1);
+        final var to = LocalDate.now().plusDays(1);
+        doReturn(users).when(userDao).findByBirthDateRange(eq(from), eq(to));
+        assertEquals(users, userService.findByBirthDateRange(from, to));
+    }
+
+    @Test
+    @DisplayName("Find users with null args throws api exception")
+    void findByBirthDateRange_withNullArgs_throws() {
+        final var errorDetails = Map.of(
+                "from", "Required parameter 'from' is not present.",
+                "to", "Required parameter 'to' is not present."
+        );
+        final var exception = assertThrows(
+                ApiException.class,
+                () -> userService.findByBirthDateRange(null, null)
+        );
+        assertEquals(Error.BAD_REQUEST, exception.getError());
+        assertEquals(errorDetails, exception.getErrorDetails());
+    }
+
+    @Test
+    @DisplayName("Find users with invalid birth date range throws api exception")
+    void findByBirthDateRange_withInvalidRange_throws() {
+        final var exception = assertThrows(
+                ApiException.class,
+                () -> userService.findByBirthDateRange(LocalDate.now().plusDays(1), LocalDate.now().minusDays(1))
+        );
+        assertEquals(Error.BAD_REQUEST, exception.getError());
+        assertEquals(Map.of("to, from", "To must be greater or equals from."), exception.getErrorDetails());
     }
 
     @Test

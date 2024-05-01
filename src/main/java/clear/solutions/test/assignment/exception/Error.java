@@ -3,6 +3,7 @@ package clear.solutions.test.assignment.exception;
 import org.springframework.http.HttpStatus;
 
 public enum Error {
+    BAD_REQUEST(HttpStatus.BAD_REQUEST, "Bad request, missing or invalid request arguments"),
     INVALID_AGE(HttpStatus.UNPROCESSABLE_ENTITY, "Age is below the minimum"),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found");
 
