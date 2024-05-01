@@ -95,7 +95,8 @@ class UserDaoTest {
     @Test
     @DisplayName("Delete all")
     void deleteAll() {
-        for (int i = 0; i < 10; i++) {
+        final var userCount = 10;
+        for (int i = 0; i < userCount; i++) {
             final var user = new User();
             user.setEmail("email%d@gmail.com".formatted(i));
             user.setFirstName("name%d".formatted(i));
@@ -103,8 +104,19 @@ class UserDaoTest {
             user.setBirthDate(LocalDate.now().minusYears(50));
             user.setAddress("address%d".formatted(i));
             user.setPhone("phone%d".formatted(i));
+            userDao.save(user);
         }
+        assertEquals(userCount, userDao.countAll());
         userDao.deleteAll();
         assertEquals(0, userDao.countAll());
+    }
+
+    @Test
+    @DisplayName("Delete by id")
+    void deleteById() {
+        final var userId = userDao.save(USER).getId();
+        assertTrue(userDao.findById(userId).isPresent());
+        userDao.deleteById(userId);
+        assertTrue(userDao.findById(userId).isEmpty());
     }
 }

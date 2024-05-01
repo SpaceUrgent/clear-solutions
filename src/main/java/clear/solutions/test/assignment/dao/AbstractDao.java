@@ -36,6 +36,10 @@ public abstract class AbstractDao<T extends Entity> {
         this.entities.clear();
     }
 
+    public void deleteById(Long userId) {
+        this.entities.remove(userId);
+    }
+
     public long countAll() {
         return this.entities.size();
     }
