@@ -24,11 +24,11 @@ class UserDaoTest {
 
     private static User USER;
 
-    private UserDao userDao;
+    private UserDaoImpl userDao;
 
     @BeforeEach
     void setUp() {
-        userDao = new UserDao();
+        userDao = new UserDaoImpl();
 
         USER = new User();
         USER.setEmail(EMAIL);
@@ -118,5 +118,30 @@ class UserDaoTest {
         assertTrue(userDao.findById(userId).isPresent());
         userDao.deleteById(userId);
         assertTrue(userDao.findById(userId).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Find users by birth date range")
+    void findByBirthDateRange() {
+        final var count = 10;
+        var userBirthDate = LocalDate.now().minusDays(5L);
+        for (int i = 0; i < count; i++) {
+            final var user = new User();
+            user.setEmail("email%d@gmail.com".formatted(i));
+            user.setFirstName("name%d".formatted(i));
+            user.setLastName("last%d".formatted(i));
+            user.setBirthDate(userBirthDate);
+            user.setAddress("address%d".formatted(i));
+            user.setPhone("phone%d".formatted(i));
+            userDao.save(user);
+            userBirthDate = userBirthDate.plusDays(1L);
+        }
+        assertEquals(count, userDao.countAll());
+        final var fromDate = LocalDate.now().minusDays(1);
+        final var toDate = LocalDate.now().plusDays(1);
+        final var users = userDao.findByBirthDateRange(fromDate, toDate);
+        assertEquals(3, users.size());
+        assertTrue(users.stream().allMatch(user -> (user.getBirthDate().equals(fromDate) || user.getBirthDate().isAfter(fromDate))
+                && (user.getBirthDate().equals(toDate) || user.getBirthDate().isBefore(toDate))));
     }
 }

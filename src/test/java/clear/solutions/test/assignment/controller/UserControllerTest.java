@@ -1,7 +1,7 @@
 package clear.solutions.test.assignment.controller;
 
 import clear.solutions.test.assignment.configuration.UserConfigurationProperties;
-import clear.solutions.test.assignment.dao.UserDao;
+import clear.solutions.test.assignment.dao.UserDaoImpl;
 import clear.solutions.test.assignment.dto.DataDto;
 import clear.solutions.test.assignment.dto.CreateUserDto;
 import clear.solutions.test.assignment.dto.UserContactsDto;
@@ -88,7 +88,7 @@ class UserControllerTest {
     @Autowired
     private UserConfigurationProperties properties;
     @SpyBean
-    private UserDao userDao;
+    private UserDaoImpl userDao;
 
     @BeforeEach
     void setUp() {

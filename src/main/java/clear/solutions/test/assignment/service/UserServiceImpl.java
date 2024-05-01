@@ -1,7 +1,7 @@
 package clear.solutions.test.assignment.service;
 
 import clear.solutions.test.assignment.configuration.UserConfigurationProperties;
-import clear.solutions.test.assignment.dao.UserDao;
+import clear.solutions.test.assignment.dao.UserDaoImpl;
 import clear.solutions.test.assignment.exception.ApiException;
 import clear.solutions.test.assignment.exception.Error;
 import clear.solutions.test.assignment.model.User;
@@ -13,10 +13,10 @@ import java.time.LocalDate;
 public class UserServiceImpl implements UserService {
 
     private final UserConfigurationProperties properties;
-    private final UserDao userDao;
+    private final UserDaoImpl userDao;
 
     public UserServiceImpl(UserConfigurationProperties properties,
-                           UserDao userDao) {
+                           UserDaoImpl userDao) {
         this.properties = properties;
         this.userDao = userDao;
     }
