@@ -12,5 +12,5 @@ public interface UserMapper {
 
     void patchUser(User target, UserContactsDto userContactsDto);
 
-    UserDto toRegisterResponse(User user);
+    UserDto toUserDto(User user);
 }

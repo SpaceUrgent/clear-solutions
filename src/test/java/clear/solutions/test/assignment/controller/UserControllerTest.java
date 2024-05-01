@@ -26,6 +26,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -40,6 +41,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -146,12 +148,89 @@ class UserControllerTest {
     }
 
     @Test
+    @DisplayName("Find users by birth date range - OK")
+    void findUsersByBirthDateRange_ok() throws Exception {
+        userDao.deleteAll();
+        final var fromDate = LocalDate.now().minusDays(1);
+        final var toDate = LocalDate.now().plusDays(1);
+        final var countDays = 10;
+        var userBirthDate = LocalDate.now().minusDays(5L);
+        for (int i = 0; i < countDays; i++) {
+            final var user = new User();
+            user.setEmail("email%d@gmail.com".formatted(i));
+            user.setFirstName("name%d".formatted(i));
+            user.setLastName("last%d".formatted(i));
+            user.setBirthDate(userBirthDate);
+            user.setAddress("address%d".formatted(i));
+            user.setPhone("phone%d".formatted(i));
+            userDao.save(user);
+            userBirthDate = userBirthDate.plusDays(1L);
+        }
+        assertEquals(countDays, userDao.countAll());
+        final var mvcResult = mockMvc.perform(get("/users")
+                        .param("from", LocalDate.now().minusDays(1L).format(DateTimeFormatter.ISO_DATE))
+                        .param("to", LocalDate.now().plusDays(1L).format(DateTimeFormatter.ISO_DATE)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.data").isArray())
+                .andReturn();
+        final var result = readJson(mvcResult.getResponse().getContentAsByteArray(), new TypeReference<DataDto<List<UserDto>>>() {});
+        assertTrue(result.getData().stream().allMatch(user -> (user.getBirthDate().equals(fromDate) || user.getBirthDate().isAfter(fromDate))
+                && (user.getBirthDate().equals(toDate) || user.getBirthDate().isBefore(toDate))));
+    }
+
+    @Test
+    @DisplayName("Find users by birth date range with null from param returns 400")
+    void findUsersByBirthDateRange_withNullFromParam_returns400() throws Exception {
+        mockMvc.perform(get("/users"))
+                .andDo(print())
+                .andExpect(status().is(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
+                .andExpect(jsonPath("$.details").value(Matchers.hasEntry("from", "Required parameter 'from' is not present.")))
+                .andExpect(jsonPath("$.path").value("/users"));
+    }
+
+    @Test
+    @DisplayName("Find users by birth date range with null to param returns 400")
+    void findUsersByBirthDateRange_withNullToParam_returns400() throws Exception {
+        mockMvc.perform(get("/users")
+                        .param("from", LocalDate.now().format(DateTimeFormatter.ISO_DATE)))
+                .andDo(print())
+                .andExpect(status().is(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
+                .andExpect(jsonPath("$.details").value(Matchers.hasEntry("to", "Required parameter 'to' is not present.")))
+                .andExpect(jsonPath("$.path").value("/users"));
+    }
+
+    @Test
+    @DisplayName("Find users by birth date range with invalid range returns 400")
+    void findUsersByBirthDateRange_withInvalidRange_returns400() throws Exception {
+        mockMvc.perform(get("/users")
+                        .param("from", LocalDate.now().format(DateTimeFormatter.ISO_DATE))
+                        .param("to", LocalDate.now().minusYears(1).format(DateTimeFormatter.ISO_DATE)))
+                .andDo(print())
+                .andExpect(status().is(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
+                .andExpect(jsonPath("$.details").value(Matchers.hasEntry("to, from", "To must be greater or equals from.")))
+                .andExpect(jsonPath("$.path").value("/users"));
+    }
+
+    @Test
     @DisplayName("Register user - OK")
     void register_ok() throws Exception {
         final var mvcResult = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(writeJson(DataDto.of(VALID_REGISTER_REQUEST))))
-                .andDo(print())
                 .andDo(print())
                 .andExpect(status().isCreated())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -189,8 +268,8 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data", "Data must be present")))
                 .andExpect(jsonPath("$.path").value("/users"));
@@ -207,8 +286,8 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data.email", "Email must be present")))
                 .andExpect(jsonPath("$.path").value("/users"));
@@ -225,8 +304,8 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data.email", "Invalid email format")))
                 .andExpect(jsonPath("$.path").value("/users"));
@@ -244,8 +323,8 @@ class UserControllerTest {
                     .andExpect(status().isBadRequest())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                     .andExpect(jsonPath("$.timestamp").exists())
-                    .andExpect(jsonPath("$.status").value(400))
-                    .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                    .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                    .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                     .andExpect(jsonPath("$.details").value(
                             Matchers.hasEntry("data.firstName", "First name must be present and contains at least 1 symbol")))
                     .andExpect(jsonPath("$.path").value("/users"));
@@ -264,8 +343,8 @@ class UserControllerTest {
                     .andExpect(status().isBadRequest())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                     .andExpect(jsonPath("$.timestamp").exists())
-                    .andExpect(jsonPath("$.status").value(400))
-                    .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                    .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                    .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                     .andExpect(jsonPath("$.details").value(
                             Matchers.hasEntry("data.lastName", "Last name must be present and contains at least 1 symbol")))
                     .andExpect(jsonPath("$.path").value("/users"));
@@ -283,8 +362,8 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data.birthDate", "Birth date must be present")))
                 .andExpect(jsonPath("$.path").value("/users"));
@@ -346,8 +425,8 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data", "Data must be present")))
                 .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
@@ -364,8 +443,8 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data.email", "Email must be present")))
                 .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
@@ -382,8 +461,8 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data.email", "Invalid email format")))
                 .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
@@ -401,8 +480,8 @@ class UserControllerTest {
                     .andExpect(status().isBadRequest())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                     .andExpect(jsonPath("$.timestamp").exists())
-                    .andExpect(jsonPath("$.status").value(400))
-                    .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                    .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                    .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                     .andExpect(jsonPath("$.details").value(
                             Matchers.hasEntry("data.firstName", "First name must be present and contains at least 1 symbol")))
                     .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
@@ -421,8 +500,8 @@ class UserControllerTest {
                     .andExpect(status().isBadRequest())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                     .andExpect(jsonPath("$.timestamp").exists())
-                    .andExpect(jsonPath("$.status").value(400))
-                    .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                    .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                    .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                     .andExpect(jsonPath("$.details").value(
                             Matchers.hasEntry("data.lastName", "Last name must be present and contains at least 1 symbol")))
                     .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
@@ -440,8 +519,8 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data.birthDate", "Birth date must be present")))
                 .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
@@ -598,8 +677,8 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data.email", "Invalid email format")))
                 .andExpect(jsonPath("$.path").value("/users/%d/contacts".formatted(USER.getId())));
@@ -617,8 +696,8 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.status").value(Error.BAD_REQUEST.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.BAD_REQUEST.getReason()))
                 .andExpect(jsonPath("$.details").value(
                         Matchers.hasEntry("data", "Data must be present")))
                 .andExpect(jsonPath("$.path").value("/users/%d/contacts".formatted(USER.getId())));

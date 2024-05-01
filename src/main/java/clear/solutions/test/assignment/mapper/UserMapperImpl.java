@@ -47,7 +47,7 @@ public class UserMapperImpl implements UserMapper {
     }
 
     @Override
-    public UserDto toRegisterResponse(final User user) {
+    public UserDto toUserDto(final User user) {
         final var response = new UserDto();
         response.setId(user.getId());
         response.setEmail(user.getEmail());
