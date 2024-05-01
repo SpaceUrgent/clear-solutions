@@ -8,10 +8,10 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-public abstract class AbstractDao<T extends Entity> {
+public abstract class AbstractDao<T extends Entity> implements Dao<T> {
 
     private final AtomicLong sequence;
-    private final Map<Long, T> entities;
+    protected final Map<Long, T> entities;
 
     public AbstractDao() {
         this.sequence = new AtomicLong(0L);
