@@ -105,4 +105,26 @@ class UserServiceImplTest {
         );
         assertEquals(Error.USER_NOT_FOUND, exception.getError());
     }
+
+    @Test
+    @DisplayName("Delete - OK")
+    void delete_ok() {
+        final var id = 1L;
+        USER.setId(id);
+        doReturn(Optional.of(USER)).when(userDao).findById(id);
+        userService.delete(id);
+        verify(userDao).deleteById(eq(id));
+    }
+
+    @Test
+    @DisplayName("Delete with non-existing id throws api exception")
+    void delete_withNonExistingUserId_throws() {
+        final var id = 1L;
+        doReturn(Optional.empty()).when(userDao).findById(id);
+        final var exception = assertThrows(
+                ApiException.class,
+                () -> userService.delete(id)
+        );
+        assertEquals(Error.USER_NOT_FOUND, exception.getError());
+    }
 }

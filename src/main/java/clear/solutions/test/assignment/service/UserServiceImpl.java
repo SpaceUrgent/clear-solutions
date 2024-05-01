@@ -33,6 +33,12 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ApiException(Error.USER_NOT_FOUND));
     }
 
+    @Override
+    public void delete(Long userId) {
+        this.find(userId);
+        this.userDao.deleteById(userId);
+    }
+
     private void checkMinAge(User user) {
         final var lowestBirthDate = LocalDate.now().minusYears(properties.getMinAge());
         if (user.getBirthDate() == null
