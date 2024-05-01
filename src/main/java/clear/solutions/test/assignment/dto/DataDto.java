@@ -4,7 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
 public class DataDto<T> {
-    @NotNull
+    @NotNull(message = "Data must be present")
     @Valid
     private T data;
 

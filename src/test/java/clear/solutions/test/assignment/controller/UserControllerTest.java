@@ -4,6 +4,7 @@ import clear.solutions.test.assignment.configuration.UserConfigurationProperties
 import clear.solutions.test.assignment.dao.UserDao;
 import clear.solutions.test.assignment.dto.DataDto;
 import clear.solutions.test.assignment.dto.CreateUserDto;
+import clear.solutions.test.assignment.dto.UserContactsDto;
 import clear.solutions.test.assignment.dto.UserDto;
 import clear.solutions.test.assignment.exception.Error;
 import clear.solutions.test.assignment.model.User;
@@ -33,9 +34,11 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -50,10 +53,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UserControllerTest {
 
     private static final String VALID_EMAIL = "username@domain.com";
+    private static final String NEW_VALID_EMAIL = "username100@domain.com";
     private static final String FIRST_NAME = "John";
     private static final String LAST_NAME = "Johnson";
     private static final String ADDRESS = "address";
+    private static final String NEW_ADDRESS = "new address";
     private static final String PHONE = "phone";
+    private static final String NEW_PHONE = "new phone";
+    private static final Long NON_EXISTING_USER_ID = Long.MAX_VALUE;
 
     private static User USER;
     private static CreateUserDto VALID_REGISTER_REQUEST;
@@ -65,6 +72,11 @@ class UserControllerTest {
     private static CreateUserDto REGISTER_REQUEST_WITH_BLANK_LAST_NAME;
     private static CreateUserDto REGISTER_REQUEST_WITH_NULL_BIRTH_DATE;
     private static CreateUserDto REGISTER_REQUEST_WITH_ILLEGAL_AGE;
+    private static UserContactsDto PATCH_USER_CONTACTS_REQUEST;
+    private static UserContactsDto PATCH_USER_EMAIL_REQUEST;
+    private static UserContactsDto PATCH_USER_ADDRESS_REQUEST;
+    private static UserContactsDto PATCH_USER_PHONE_REQUEST;
+    private static UserContactsDto PATCH_USER_REQUEST_WITH_INVALID_EMAIL;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule());
@@ -87,7 +99,9 @@ class UserControllerTest {
         USER.setFirstName(FIRST_NAME);
         USER.setLastName(LAST_NAME);
         USER.setBirthDate(validBirthDate);
-        USER = userDao.save(USER);
+        final var saved = userDao.save(USER);
+        assertNotSame(USER, saved, "User dao save must return a clone of saved entity");
+        USER = saved;
         Mockito.clearInvocations(userDao);
 
         VALID_REGISTER_REQUEST = new CreateUserDto();
@@ -114,6 +128,21 @@ class UserControllerTest {
         REGISTER_REQUEST_WITH_NULL_BIRTH_DATE.setBirthDate(null);
         REGISTER_REQUEST_WITH_ILLEGAL_AGE = getCopyFrom(VALID_REGISTER_REQUEST);
         REGISTER_REQUEST_WITH_ILLEGAL_AGE.setBirthDate(LocalDate.now().minusYears(properties.getMinAge()).plusDays(1));
+
+
+
+        PATCH_USER_CONTACTS_REQUEST = new UserContactsDto();
+        PATCH_USER_CONTACTS_REQUEST.setEmail(NEW_VALID_EMAIL);
+        PATCH_USER_CONTACTS_REQUEST.setAddress(NEW_ADDRESS);
+        PATCH_USER_CONTACTS_REQUEST.setPhone(NEW_PHONE);
+        PATCH_USER_EMAIL_REQUEST = new UserContactsDto();
+        PATCH_USER_EMAIL_REQUEST.setEmail(NEW_VALID_EMAIL);
+        PATCH_USER_ADDRESS_REQUEST = new UserContactsDto();
+        PATCH_USER_ADDRESS_REQUEST.setAddress(NEW_ADDRESS);
+        PATCH_USER_PHONE_REQUEST = new UserContactsDto();
+        PATCH_USER_PHONE_REQUEST.setPhone(NEW_PHONE);
+        PATCH_USER_REQUEST_WITH_INVALID_EMAIL = new UserContactsDto();
+        PATCH_USER_REQUEST_WITH_INVALID_EMAIL.setEmail("invalid@mail");
     }
 
     @Test
@@ -416,7 +445,147 @@ class UserControllerTest {
         verify(userDao, times(0)).save(any());
     }
 
+    @Test
+    @DisplayName("Patch user all contacts fields - OK")
+    void patchUser_allContactFields_ok() throws Exception {
+        mockMvc.perform(patch("/users/{userId}/contacts", USER.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(writeJson(DataDto.of(PATCH_USER_CONTACTS_REQUEST))))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.data.id").value(USER.getId()))
+                .andExpect(jsonPath("$.data.email").value(PATCH_USER_CONTACTS_REQUEST.getEmail()))
+                .andExpect(jsonPath("$.data.firstName").value(USER.getFirstName()))
+                .andExpect(jsonPath("$.data.lastName").value(USER.getLastName()))
+                .andExpect(jsonPath("$.data.birthDate").value(USER.getBirthDate().format(DateTimeFormatter.ISO_DATE)))
+                .andExpect(jsonPath("$.data.address").value(PATCH_USER_CONTACTS_REQUEST.getAddress()))
+                .andExpect(jsonPath("$.data.phone").value(PATCH_USER_CONTACTS_REQUEST.getPhone()));
+        final var patched = userDao.findById(USER.getId()).orElse(null);
+        assertNotNull(patched);
+        assertEquals(USER.getId(), patched.getId());
+        assertEquals(PATCH_USER_CONTACTS_REQUEST.getEmail(), patched.getEmail());
+        assertEquals(USER.getFirstName(), patched.getFirstName());
+        assertEquals(USER.getLastName(), patched.getLastName());
+        assertEquals(USER.getBirthDate(), patched.getBirthDate());
+        assertEquals(PATCH_USER_CONTACTS_REQUEST.getAddress(), patched.getAddress());
+        assertEquals(PATCH_USER_CONTACTS_REQUEST.getPhone(), patched.getPhone());
+    }
 
+    @Test
+    @DisplayName("Patch user email only - OK")
+    void patchUser_onlyEmail_ok() throws Exception {
+        mockMvc.perform(patch("/users/{userId}/contacts", USER.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(DataDto.of(PATCH_USER_EMAIL_REQUEST))))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.data.id").value(USER.getId()))
+                .andExpect(jsonPath("$.data.email").value(PATCH_USER_EMAIL_REQUEST.getEmail()))
+                .andExpect(jsonPath("$.data.firstName").value(USER.getFirstName()))
+                .andExpect(jsonPath("$.data.lastName").value(USER.getLastName()))
+                .andExpect(jsonPath("$.data.birthDate").value(USER.getBirthDate().format(DateTimeFormatter.ISO_DATE)))
+                .andExpect(jsonPath("$.data.address").doesNotExist())
+                .andExpect(jsonPath("$.data.phone").doesNotExist());
+        final var patched = userDao.findById(USER.getId()).orElse(null);
+        assertNotNull(patched);
+        assertEquals(USER.getId(), patched.getId());
+        assertEquals(PATCH_USER_CONTACTS_REQUEST.getEmail(), patched.getEmail());
+        assertEquals(USER.getFirstName(), patched.getFirstName());
+        assertEquals(USER.getLastName(), patched.getLastName());
+        assertEquals(USER.getBirthDate(), patched.getBirthDate());
+        assertEquals(USER.getAddress(), patched.getAddress());
+        assertEquals(USER.getPhone(), patched.getPhone());
+    }
+
+    @Test
+    @DisplayName("Patch user address only - OK")
+    void patchUser_onlyAddress_ok() throws Exception {
+        mockMvc.perform(patch("/users/{userId}/contacts", USER.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(DataDto.of(PATCH_USER_ADDRESS_REQUEST))))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.data.id").value(USER.getId()))
+                .andExpect(jsonPath("$.data.email").value(USER.getEmail()))
+                .andExpect(jsonPath("$.data.firstName").value(USER.getFirstName()))
+                .andExpect(jsonPath("$.data.lastName").value(USER.getLastName()))
+                .andExpect(jsonPath("$.data.birthDate").value(USER.getBirthDate().format(DateTimeFormatter.ISO_DATE)))
+                .andExpect(jsonPath("$.data.address").value(PATCH_USER_ADDRESS_REQUEST.getAddress()))
+                .andExpect(jsonPath("$.data.phone").doesNotExist());
+        final var patched = userDao.findById(USER.getId()).orElse(null);
+        assertNotNull(patched);
+        assertEquals(USER.getId(), patched.getId());
+        assertEquals(USER.getEmail(), patched.getEmail());
+        assertEquals(USER.getFirstName(), patched.getFirstName());
+        assertEquals(USER.getLastName(), patched.getLastName());
+        assertEquals(USER.getBirthDate(), patched.getBirthDate());
+        assertEquals(PATCH_USER_ADDRESS_REQUEST.getAddress(), patched.getAddress());
+        assertEquals(USER.getPhone(), patched.getPhone());
+    }
+
+    @Test
+    @DisplayName("Patch user phone only - OK")
+    void patchUser_onlyPhone_ok() throws Exception {
+        mockMvc.perform(patch("/users/{userId}/contacts", USER.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(DataDto.of(PATCH_USER_PHONE_REQUEST))))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.data.id").value(USER.getId()))
+                .andExpect(jsonPath("$.data.email").value(USER.getEmail()))
+                .andExpect(jsonPath("$.data.firstName").value(USER.getFirstName()))
+                .andExpect(jsonPath("$.data.lastName").value(USER.getLastName()))
+                .andExpect(jsonPath("$.data.birthDate").value(USER.getBirthDate().format(DateTimeFormatter.ISO_DATE)))
+                .andExpect(jsonPath("$.data.address").doesNotExist())
+                .andExpect(jsonPath("$.data.phone").value(PATCH_USER_PHONE_REQUEST.getPhone()));
+        final var patched = userDao.findById(USER.getId()).orElse(null);
+        assertNotNull(patched);
+        assertEquals(USER.getId(), patched.getId());
+        assertEquals(USER.getEmail(), patched.getEmail());
+        assertEquals(USER.getFirstName(), patched.getFirstName());
+        assertEquals(USER.getLastName(), patched.getLastName());
+        assertEquals(USER.getBirthDate(), patched.getBirthDate());
+        assertEquals(USER.getAddress(), patched.getAddress());
+        assertEquals(PATCH_USER_PHONE_REQUEST.getPhone(), patched.getPhone());
+    }
+
+    @Test
+    @DisplayName("Patch user with invalid email returns 400")
+    void patchUser_withInvalidEmail_returns400() throws Exception {
+        mockMvc.perform(patch("/users/{userId}/contacts", USER.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(DataDto.of(PATCH_USER_REQUEST_WITH_INVALID_EMAIL))))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.details").value(
+                        Matchers.hasEntry("data.email", "Invalid email format")))
+                .andExpect(jsonPath("$.path").value("/users/%d/contacts".formatted(USER.getId())));
+        verify(userDao, times(0)).save(any());
+    }
+
+    @Test
+    @DisplayName("Patch user with non-existing user id returns 404")
+    void patchUser_withNonExistingId_returns404() throws Exception {
+        mockMvc.perform(patch("/users/{userId}/contacts", NON_EXISTING_USER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(DataDto.of(PATCH_USER_CONTACTS_REQUEST))))
+                .andDo(print())
+                .andExpect(status().is(Error.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(Error.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.USER_NOT_FOUND.getReason()))
+                .andExpect(jsonPath("$.path").value("/users/%d/contacts".formatted(NON_EXISTING_USER_ID)));
+        verify(userDao, times(0)).save(any());
+    }
 
     private <T> T readJson(final byte[] json, TypeReference<T> typeReference) throws IOException {
         return objectMapper.readValue(json, typeReference);

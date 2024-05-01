@@ -2,6 +2,7 @@ package clear.solutions.test.assignment.controller;
 
 import clear.solutions.test.assignment.dto.DataDto;
 import clear.solutions.test.assignment.dto.CreateUserDto;
+import clear.solutions.test.assignment.dto.UserContactsDto;
 import clear.solutions.test.assignment.dto.UserDto;
 import clear.solutions.test.assignment.mapper.UserMapper;
 import clear.solutions.test.assignment.service.UserService;
@@ -9,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -43,6 +45,15 @@ public class UserController {
                                        @Valid @RequestBody final DataDto<CreateUserDto> dataDto) {
         var user = userService.find(userId);
         userMapper.updateUser(user, dataDto.getData());
+        user = userService.save(user);
+        return DataDto.of(userMapper.toRegisterResponse(user));
+    }
+
+    @PatchMapping("/{userId}/contacts")
+    public DataDto<UserDto> patchUser(@PathVariable final Long userId,
+                                       @Valid @RequestBody final DataDto<UserContactsDto> dataDto) {
+        var user = userService.find(userId);
+        userMapper.patchUser(user, dataDto.getData());
         user = userService.save(user);
         return DataDto.of(userMapper.toRegisterResponse(user));
     }
