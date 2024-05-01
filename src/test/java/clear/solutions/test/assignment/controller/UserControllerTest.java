@@ -35,9 +35,11 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -623,7 +625,6 @@ class UserControllerTest {
         verify(userDao, times(0)).save(any());
     }
 
-
     @Test
     @DisplayName("Patch user with non-existing user id returns 404")
     void patchUser_withNonExistingId_returns404() throws Exception {
@@ -638,6 +639,29 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.reason").value(Error.USER_NOT_FOUND.getReason()))
                 .andExpect(jsonPath("$.path").value("/users/%d/contacts".formatted(NON_EXISTING_USER_ID)));
         verify(userDao, times(0)).save(any());
+    }
+
+    @Test
+    @DisplayName("Delete user - OK")
+    void deleteUser_ok() throws Exception {
+        mockMvc.perform(delete("/users/{userId}", USER.getId()))
+                .andDo(print())
+                .andExpect(status().isOk());
+        assertTrue(userDao.findById(USER.getId()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Delete user with non-existing user id returns 404")
+    void deleteUser_withNonExistingId_returns404() throws Exception {
+        mockMvc.perform(delete("/users/{userId}", NON_EXISTING_USER_ID))
+                .andDo(print())
+                .andExpect(status().is(Error.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(Error.USER_NOT_FOUND.getHttpStatus().value()))
+                .andExpect(jsonPath("$.reason").value(Error.USER_NOT_FOUND.getReason()))
+                .andExpect(jsonPath("$.path").value("/users/%d".formatted(NON_EXISTING_USER_ID)));
+        verify(userDao, times(0)).deleteById(any());
     }
 
     private <T> T readJson(final byte[] json, TypeReference<T> typeReference) throws IOException {
