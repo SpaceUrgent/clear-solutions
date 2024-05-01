@@ -129,8 +129,6 @@ class UserControllerTest {
         REGISTER_REQUEST_WITH_ILLEGAL_AGE = getCopyFrom(VALID_REGISTER_REQUEST);
         REGISTER_REQUEST_WITH_ILLEGAL_AGE.setBirthDate(LocalDate.now().minusYears(properties.getMinAge()).plusDays(1));
 
-
-
         PATCH_USER_CONTACTS_REQUEST = new UserContactsDto();
         PATCH_USER_CONTACTS_REQUEST.setEmail(NEW_VALID_EMAIL);
         PATCH_USER_CONTACTS_REQUEST.setAddress(NEW_ADDRESS);
@@ -177,6 +175,24 @@ class UserControllerTest {
         assertEquals(VALID_REGISTER_REQUEST.getBirthDate(), saved.getBirthDate());
         assertEquals(VALID_REGISTER_REQUEST.getAddress(), saved.getAddress());
         assertEquals(VALID_REGISTER_REQUEST.getPhone(), saved.getPhone());
+    }
+
+    @Test
+    @DisplayName("Register user with null data returns 400")
+    void register_withNullData_returns400() throws Exception {
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(new DataDto<>())))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.details").value(
+                        Matchers.hasEntry("data", "Data must be present")))
+                .andExpect(jsonPath("$.path").value("/users"));
+        verify(userDao, times(0)).save(any());
     }
 
     @Test
@@ -319,6 +335,24 @@ class UserControllerTest {
     }
 
     @Test
+    @DisplayName("Update user with null data returns 400")
+    void updateUser_withNullData_returns400() throws Exception {
+        mockMvc.perform(put("/users/{userId}", USER.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(new DataDto<>())))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.details").value(
+                        Matchers.hasEntry("data", "Data must be present")))
+                .andExpect(jsonPath("$.path").value("/users/%d".formatted(USER.getId())));
+        verify(userDao, times(0)).save(any());
+    }
+
+    @Test
     @DisplayName("Update user with null email returns 400")
     void updateUser_withNullEmail_returns400() throws Exception {
         mockMvc.perform(put("/users/{userId}", USER.getId())
@@ -431,8 +465,7 @@ class UserControllerTest {
     @Test
     @DisplayName("Update user with with non-existing id throws 404")
     void updateUser_withNonExistingId_returns404() throws Exception {
-        final var nonExistingId = 100000L;
-        mockMvc.perform(put("/users/{userId}", nonExistingId)
+        mockMvc.perform(put("/users/{userId}", NON_EXISTING_USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(writeJson(DataDto.of(VALID_REGISTER_REQUEST))))
                 .andDo(print())
@@ -441,7 +474,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.status").value(Error.USER_NOT_FOUND.getHttpStatus().value()))
                 .andExpect(jsonPath("$.reason").value(Error.USER_NOT_FOUND.getReason()))
-                .andExpect(jsonPath("$.path").value("/users/%d".formatted(nonExistingId)));
+                .andExpect(jsonPath("$.path").value("/users/%d".formatted(NON_EXISTING_USER_ID)));
         verify(userDao, times(0)).save(any());
     }
 
@@ -570,6 +603,26 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.path").value("/users/%d/contacts".formatted(USER.getId())));
         verify(userDao, times(0)).save(any());
     }
+
+
+    @Test
+    @DisplayName("Patch user with null data returns 400")
+    void patchUser_withNullData_returns400() throws Exception {
+        mockMvc.perform(patch("/users/{userId}/contacts", USER.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(writeJson(new DataDto<>())))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.reason").value("Bad request, missing or invalid request arguments"))
+                .andExpect(jsonPath("$.details").value(
+                        Matchers.hasEntry("data", "Data must be present")))
+                .andExpect(jsonPath("$.path").value("/users/%d/contacts".formatted(USER.getId())));
+        verify(userDao, times(0)).save(any());
+    }
+
 
     @Test
     @DisplayName("Patch user with non-existing user id returns 404")
